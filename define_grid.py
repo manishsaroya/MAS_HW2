@@ -56,10 +56,10 @@ def moveDown(zvals_,pose):
 
 
 # Some global learning parameters
-numIterations = 1000 # these many times the robot will catch the target while in training mode.
+numIterations = 10000 # these many times the robot will catch the target while in training mode.
 
 # Set number of iterations to be used to evaluate Qlearning. Should be atleast 1
-evaIterations = 100
+evaIterations = 1000
 
 #iterations = 0
 Qvalues = np.zeros((2500,4)) #Qvalue is [States * Actions] matrix.
@@ -142,7 +142,7 @@ def timestep(i):
 
 def QlearningEvaluation():
     i = 0
-    numActions = 0
+    totalReward = 0
     while i < evaIterations:
         # Before action mapping from robotPose & targetPose to Qvalues table.
         robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
@@ -170,11 +170,12 @@ def QlearningEvaluation():
     
         #print robotPose, targetPose, robotCell, targetCell
         #im.set_data(zvals)
-        numActions = numActions + 1
+        totalReward += -1
         if robotCell == targetCell:
+            totalReward += 20
             i = i + 1
             envReset()
-    return numActions / evaIterations
+    return totalReward / evaIterations
 
 
 def Qlearning():
@@ -204,7 +205,7 @@ def Qlearning():
         # After action mapping from robotPose & targetPose to Qvalues table. 
         robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
         targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
-        state = ((len(zvals[0]) * len(zvals)) * robotCell)+ targetCell 
+        state = ((len(zvals[0]) * len(zvals)) * robotCell) + targetCell 
         #print robotCell , targetCell, state, (len(zvals[0]) * len(zvals[1]))
     
         #Change the Zvals;
@@ -224,13 +225,9 @@ def Qlearning():
     
             if iterations == numIterations:
                 print Qvalues
-                #for i in range(len(Qvalues)):
-                #    if i%50 == 4:
-                #        print Qvalues[i]
 
 Qlearning()
 print QlearningEvaluation()
 anim = animation.FuncAnimation(fig, timestep, init_func=init, frames=30,
                                interval=300)
-
 plt.show()
