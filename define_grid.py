@@ -1,7 +1,8 @@
+from __future__ import division
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from  matplotlib import animation
+from matplotlib import animation
 import sys
 import random
 
@@ -55,7 +56,11 @@ def moveDown(zvals_,pose):
 
 
 # Some global learning parameters
-numIterations = 10000 # these many times the robot will catch the target while in training mode.
+numIterations = 1000 # these many times the robot will catch the target while in training mode.
+
+# Set number of iterations to be used to evaluate Qlearning. Should be atleast 1
+evaIterations = 100
+
 #iterations = 0
 Qvalues = np.zeros((2500,4)) #Qvalue is [States * Actions] matrix.
 # the states are 50(target positions) * 50 (robot positions) 
@@ -81,25 +86,21 @@ robotPose = [np.random.randint(0,5), np.random.randint(0,10)]
 targetPose = [1,9]
 
 def envReset():
-        # the map
-        global zvals
-        zvals = np.zeros((5,10))
+    # the map
+    global zvals
+    zvals = np.zeros((5,10))
 
-        # intialize the random robot pose and fixed target pose.
-        global robotPose
-        robotPose = [np.random.randint(0,5), np.random.randint(0,10)]
-        global targetPose
-        targetPose = [1,9]
+    # intialize the random robot pose and fixed target pose.
+    global robotPose
+    robotPose = [np.random.randint(0,5), np.random.randint(0,10)]
+    global targetPose
+    targetPose = [1,9]
 
-        # assign color/ID values to robotpose and target pose in map
-        zvals[robotPose[0],robotPose[1]] = 1
-        zvals[targetPose[0],targetPose[1]] = 0.5
+    # assign color/ID values to robotpose and target pose in map
+    zvals[robotPose[0],robotPose[1]] = 1
+    zvals[targetPose[0],targetPose[1]] = 0.5
 
 envReset()
-
-# assign color/ID values to robotpose and target pose in map
-#zvals[robotPose[0],robotPose[1]] = 1
-#zvals[targetPose[0],targetPose[1]] = 0.5
 
 # Visualization
 fig = plt.figure()
@@ -136,7 +137,45 @@ def timestep(i):
     print robotPose, targetPose, robotCell, targetCell
     im.set_data(zvals)
     if robotCell == targetCell:
+        envReset()
         sys.exit("Demo done")
+
+def QlearningEvaluation():
+    i = 0
+    numActions = 0
+    while i < evaIterations:
+        # Before action mapping from robotPose & targetPose to Qvalues table.
+        robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
+        targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
+        state_ = (len(zvals[0]) * len(zvals)) * robotCell + targetCell
+    
+        #move the target randomly.
+        switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
+        func = switcher.get(np.random.randint(0,4), lambda: "Invalid input")
+        newzvalstarget, newtargetPose = func(zvals,targetPose)
+    
+        #move the robot
+        switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
+        action = np.argmax(Qvalues[state_])
+        func = switcher.get(action, lambda: "Invalid input")
+        newzvals, newrobotPose = func(zvals, robotPose)
+    
+        # assign color/ID values to robotpose and target pose in map
+        zvals[robotPose[0],robotPose[1]] = 1
+        zvals[targetPose[0],targetPose[1]] = 0.5
+    
+        # After action mapping from robotPose & targetPose to Qvalues table.
+        robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
+        targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
+    
+        #print robotPose, targetPose, robotCell, targetCell
+        #im.set_data(zvals)
+        numActions = numActions + 1
+        if robotCell == targetCell:
+            i = i + 1
+            envReset()
+    return numActions / evaIterations
+
 
 def Qlearning():
     iterations = 0
@@ -184,12 +223,14 @@ def Qlearning():
             envReset()
     
             if iterations == numIterations:
-                for i in range(len(Qvalues)):
-                    if i%50 == 4:
-                        print Qvalues[i]
+                print Qvalues
+                #for i in range(len(Qvalues)):
+                #    if i%50 == 4:
+                #        print Qvalues[i]
 
 Qlearning()
+print QlearningEvaluation()
 anim = animation.FuncAnimation(fig, timestep, init_func=init, frames=30,
-                               interval=1000)
+                               interval=300)
 
 plt.show()
