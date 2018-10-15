@@ -57,10 +57,10 @@ def moveDown(zvals_,pose):
 
 
 # Some global learning parameters
-numIterations = 10000 # these many times the robot will catch the target while in training mode.
+numIterations = 20000 # these many times the robot will catch the target while in training mode.
 
 # Set number of iterations to be used to evaluate Qlearning. Should be atleast 1
-evaIterations = 10
+evaIterations = 1000
 
 #iterations = 0
 
@@ -130,74 +130,6 @@ im = plt.imshow(zvals, origin={'lower','left'})
 def init():
     im.set_data(zvals)
 
-def timestep(i):  
-    # Before action mapping from robotPose & targetPose to Qvalues table.
-    robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
-    targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
-    state_ = (len(zvals[0]) * len(zvals)) * robotCell + targetCell
-    
-    # move the target randomly.
-    switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
-    func = switcher.get(np.random.randint(0,4), lambda: "Invalid input")
-    newzvalstarget, newtargetPose = func(zvals,targetPose)
-    
-    # move the robot 
-    switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
-    action = np.argmax(Qvalues[state_])
-    func = switcher.get(action, lambda: "Invalid input")
-    newzvals, newrobotPose = func(zvals, robotPose)
-
-    # assign color/ID values to robotpose and target pose in map
-    zvals[robotPose[0],robotPose[1]] = 1
-    zvals[targetPose[0],targetPose[1]] = 0.5
-    
-    # After action mapping from robotPose & targetPose to Qvalues table. 
-    robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
-    targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
-   
-    print robotPose, targetPose, robotCell, targetCell
-    im.set_data(zvals)
-    if robotCell == targetCell:
-        envReset()
-        sys.exit("Demo done")
-
-def QlearningEvaluation():
-    i = 0
-    totalReward = 0
-    while i < evaIterations:
-        # Before action mapping from robotPose & targetPose to Qvalues table.
-        robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
-        targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
-        state_ = (len(zvals[0]) * len(zvals)) * robotCell + targetCell
-    
-        #move the target randomly.
-        switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
-        func = switcher.get(np.random.randint(0,4), lambda: "Invalid input")
-        newzvalstarget, newtargetPose = func(zvals,targetPose)
-    
-        #move the robot
-        switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
-        action = np.argmax(Qvalues[state_])
-        func = switcher.get(action, lambda: "Invalid input")
-        newzvals, newrobotPose = func(zvals, robotPose)
-    
-        # assign color/ID values to robotpose and target pose in map
-        zvals[robotPose[0],robotPose[1]] = 1
-        zvals[targetPose[0],targetPose[1]] = 0.5
-    
-        # After action mapping from robotPose & targetPose to Qvalues table.
-        robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
-        targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
-    
-        #print robotPose, targetPose, robotCell, targetCell
-        #im.set_data(zvals)
-        totalReward += -1
-        if robotCell == targetCell:
-            totalReward += 20
-            i = i + 1
-            envReset()
-    return totalReward / evaIterations
-
 def computeState():
     targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
     #print "targetCell", targetCell
@@ -225,6 +157,107 @@ def moveRobot(robotPose,state_,index):
     newzvals, newrobotPose = func(zvals, robotPose)
     return robotPose, action
 
+def timestep(i):  
+    # Before action mapping from robotPose & targetPose to Qvalues table.
+    #robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
+    #targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
+    #state_ = (len(zvals[0]) * len(zvals)) * robotCell + targetCell
+    state_ = computeState()
+
+    # move the target randomly.
+    switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
+    func = switcher.get(np.random.randint(0,4), lambda: "Invalid input")
+    newzvalstarget, newtargetPose = func(zvals,targetPose)
+    
+    # move the robot 
+    #switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
+    #action = np.argmax(Qvalues[state_])
+    #func = switcher.get(action, lambda: "Invalid input")
+    #newzvals, newrobotPose = func(zvals, robotPose)
+    agentsActions = []
+    #move the robot
+    for index in range(len(agentsPose)):
+        agentsPose[index], action = moveRobot(copy.copy(agentsPose[index]),state_,index)
+        agentsActions.append(action)
+
+    # assign color/ID values to robotpose and target pose in map
+    #zvals[robotPose[0],robotPose[1]] = 1
+    for index, robotPose in enumerate(agentsPose):
+        zvals[robotPose[0],robotPose[1]] = index+1
+
+    zvals[targetPose[0],targetPose[1]] = 0.5
+    
+    # After action mapping from robotPose & targetPose to Qvalues table. 
+    #robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
+    targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
+   
+    isTerminate = False
+    for index, robotPose in enumerate(agentsPose):
+        robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
+        isTerminate = (targetCell==robotCell) or isTerminate
+
+    #print robotPose, targetPose, robotCell, targetCell
+    im.set_data(zvals)
+    #if robotCell == targetCell:
+    if isTerminate:
+        envReset()
+        #sys.exit("Demo done")
+
+def QlearningEvaluation():
+    i = 0
+    totalReward = []
+    for i in range(numAgents):
+        totalReward.append(0)
+    while i < evaIterations:
+        # Before action mapping from robotPose & targetPose to Qvalues table.
+        #robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
+        #targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
+        #state_ = (len(zvals[0]) * len(zvals)) * robotCell + targetCell
+        state_ = computeState()
+
+        #move the target randomly.
+        switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
+        func = switcher.get(np.random.randint(0,4), lambda: "Invalid input")
+        newzvalstarget, newtargetPose = func(zvals,targetPose)
+    
+        #move the robot
+        #switcher = {0: moveLeft, 1: moveRight, 2: moveUp, 3: moveDown}
+        #action = np.argmax(Qvalues[state_])
+        #func = switcher.get(action, lambda: "Invalid input")
+        #newzvals, newrobotPose = func(zvals, robotPose)
+        
+        agentsActions = []
+        #move the robot
+        for index in range(len(agentsPose)):
+            agentsPose[index], action = moveRobot(copy.copy(agentsPose[index]),state_,index)
+            agentsActions.append(action)
+
+        # assign color/ID values to robotpose and target pose in map
+        for index, robotPose in enumerate(agentsPose):
+            zvals[robotPose[0],robotPose[1]] = index+1
+        zvals[targetPose[0],targetPose[1]] = 0.5
+    
+        # After action mapping from robotPose & targetPose to Qvalues table.
+        #robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
+        targetCell = len(zvals[0]) * targetPose[0] + targetPose[1]
+        
+        isTerminate = False
+        for index, robotPose in enumerate(agentsPose):
+            robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
+            isTerminate = (targetCell==robotCell) or isTerminate
+
+        #print robotPose, targetPose, robotCell, targetCell
+        #im.set_data(zvals)
+            totalReward[index] += -1
+            if robotCell == targetCell:
+                totalReward[index] += 20
+        if isTerminate:
+            i = i + 1
+            envReset()
+    print "totalReward",totalReward
+    totalReward[:] = [r/evaIterations for r in totalReward]
+    print "average Reward", totalReward
+    return totalReward
 
 def Qlearning():
     iterations = 0
@@ -280,7 +313,7 @@ def Qlearning():
                     
             #isTerminal = (robotCell == targetCell) or isTerminal 
        
-    sys.exit("Testing")
+#    sys.exit("Testing")
 #        if targetCell!=robotCell:
 #            #update the Qtable
 #            sample = transitionReward + np.amax(Qvalues[state])
