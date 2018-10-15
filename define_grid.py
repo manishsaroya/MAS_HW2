@@ -62,7 +62,7 @@ numIterations = 20000 # these many times the robot will catch the target while i
 # Set number of iterations to be used to evaluate Qlearning. Should be atleast 1
 evaIterations = 1000
 
-#iterations = 0
+systemReward = True #iterations = 0
 
 # A transition reward of -1 is given to the agent at every time step.
 transitionReward = -1
@@ -249,8 +249,15 @@ def QlearningEvaluation():
         #print robotPose, targetPose, robotCell, targetCell
         #im.set_data(zvals)
             totalReward[index] += -1
-            if robotCell == targetCell:
-                totalReward[index] += 20
+            if not systemReward:
+                if robotCell == targetCell:
+                    totalReward[index] += 20
+        
+        if systemReward:
+            for index, robotPose in enumerate(agentsPose):
+                if isTerminate:
+                    totalReward[index] += 10
+        
         if isTerminate:
             i = i + 1
             envReset()
@@ -291,15 +298,27 @@ def Qlearning():
         for index, robotPose in enumerate(agentsPose):
             robotCell = len(zvals[0]) * robotPose[0] + robotPose[1]
             isTerminate = (targetCell==robotCell) or isTerminate
-
-            if targetCell!=robotCell:
-                #update the Qtable
-                sample = transitionReward + np.amax(agentsQvalues[index][state])
-                agentsQvalues[index][state_,agentsActions[index]] = ((1 - learningRate) * agentsQvalues[index][state_,agentsActions[index]]) + (learningRate * sample)
-            else:
-                #update the Qtable
-                sample = transitionReward + 20
-                agentsQvalues[index][state_,agentsActions[index]] = ((1 - learningRate) * agentsQvalues[index][state_,agentsActions[index]]) + (learningRate * sample)
+            if not systemReward:
+                if targetCell!=robotCell:
+                    #update the Qtable
+                    sample = transitionReward + np.amax(agentsQvalues[index][state])
+                    agentsQvalues[index][state_,agentsActions[index]] = ((1 - learningRate) * agentsQvalues[index][state_,agentsActions[index]]) + (learningRate * sample)
+                else:
+                    #update the Qtable
+                    sample = transitionReward + 20
+                    agentsQvalues[index][state_,agentsActions[index]] = ((1 - learningRate) * agentsQvalues[index][state_,agentsActions[index]]) + (learningRate * sample)
+        if systemReward:
+            for index, robotPose in enumerate(agentsPose):
+                if not isTerminate:
+                    #update the Qtable
+                    sample = transitionReward + np.amax(agentsQvalues[index][state])
+                    agentsQvalues[index][state_,agentsActions[index]] = ((1 - learningRate) * agentsQvalues[index][state_,agentsActions[index]]) + (learningRate * sample)
+                else:
+                    #update the Qtable
+                    sample = transitionReward + 10
+                    agentsQvalues[index][state_,agentsActions[index]] = ((1 - learningRate) * agentsQvalues[index][state_,agentsActions[index]]) + (learningRate * sample)
+   
+                
         if isTerminate:
             #global iterations
             iterations = iterations + 1
